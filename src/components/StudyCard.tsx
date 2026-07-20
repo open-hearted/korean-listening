@@ -68,6 +68,7 @@ export function StudyCard() {
 
 function StudyItemDisplay({ item }: { item: StudyItem }) {
   const [showHangul, setShowHangul] = useState(false);
+  const [showEnSyllables, setShowEnSyllables] = useState(false);
 
   return (
     <>
@@ -76,21 +77,45 @@ function StudyItemDisplay({ item }: { item: StudyItem }) {
           {item.jaIpa}
         </p>
       )}
+      {item.enIpa && (
+        <p className="break-words text-3xl font-semibold sm:text-4xl">
+          {item.enIpa}
+        </p>
+      )}
       <p className="break-words text-5xl font-bold tracking-wide sm:text-6xl md:text-7xl">
         {item.ipa}
       </p>
-      {showHangul && (
-        <p className="break-words text-5xl font-bold tracking-wide sm:text-6xl md:text-7xl">
-          {item.koText}
-        </p>
-      )}
-      <button
-        type="button"
-        onClick={() => setShowHangul((prev) => !prev)}
-        className="text-sm font-medium text-gray-500 underline"
-      >
-        {showHangul ? "ハングルを隠す" : "ハングルを表示"}
-      </button>
+
+      <div className="flex min-h-[4rem] w-full flex-col items-center justify-center gap-2">
+        {showHangul && (
+          <p className="break-words text-5xl font-bold tracking-wide sm:text-6xl md:text-7xl">
+            {item.koText}
+          </p>
+        )}
+        {showEnSyllables && item.enSyllables && (
+          <p className="break-words text-2xl tracking-wide text-gray-700 sm:text-3xl">
+            {item.enSyllables}
+          </p>
+        )}
+      </div>
+
+      <div className="flex gap-4">
+        <button
+          type="button"
+          onClick={() => setShowHangul((prev) => !prev)}
+          className="text-sm font-medium text-gray-500 underline"
+        >
+          {showHangul ? "ハングルを隠す" : "ハングルを表示"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowEnSyllables((prev) => !prev)}
+          disabled={!item.enSyllables}
+          className="text-sm font-medium text-gray-500 underline disabled:cursor-not-allowed disabled:text-gray-300 disabled:no-underline"
+        >
+          {showEnSyllables ? "英語スペルを隠す" : "英語スペルを表示"}
+        </button>
+      </div>
     </>
   );
 }

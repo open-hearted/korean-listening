@@ -7,6 +7,10 @@ export interface StudyItem {
   jaIpa: string | null;
   jaAudioUrl: string;
   koAudioUrl: string;
+  enText: string | null;
+  enIpa: string | null;
+  enAudioUrl: string | null;
+  enSyllables: string | null;
 }
 
 export interface StudyFilter {

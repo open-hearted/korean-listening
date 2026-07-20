@@ -10,6 +10,10 @@ interface StudyItemRow {
   ja_ipa: string | null;
   ja_audio_url: string;
   ko_audio_url: string;
+  en_text: string | null;
+  en_ipa: string | null;
+  en_audio_url: string | null;
+  en_syllables: string | null;
 }
 
 function toStudyItem(row: StudyItemRow): StudyItem {
@@ -21,6 +25,10 @@ function toStudyItem(row: StudyItemRow): StudyItem {
     jaIpa: row.ja_ipa,
     jaAudioUrl: row.ja_audio_url,
     koAudioUrl: row.ko_audio_url,
+    enText: row.en_text,
+    enIpa: row.en_ipa,
+    enAudioUrl: row.en_audio_url,
+    enSyllables: row.en_syllables,
   };
 }
 

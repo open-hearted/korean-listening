@@ -34,7 +34,10 @@ export function useStudySession(): UseStudySessionResult {
     async (item: StudyItem) => {
       setPhase("playing");
       try {
-        await play([item.jaAudioUrl, item.koAudioUrl]);
+        const urls = [item.jaAudioUrl, item.enAudioUrl, item.koAudioUrl].filter(
+          (url): url is string => url !== null
+        );
+        await play(urls);
         setPhase("ready");
       } catch {
         setErrorMessage("音声の再生に失敗しました。");

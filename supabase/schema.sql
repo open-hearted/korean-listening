@@ -7,6 +7,10 @@ create table study_items (
   ja_ipa text,
   ja_audio_url text not null,
   ko_audio_url text not null,
+  en_text text,
+  en_ipa text,
+  en_audio_url text,
+  en_syllables text,
   created_at timestamptz default now()
 );
 alter table study_items enable row level security;
