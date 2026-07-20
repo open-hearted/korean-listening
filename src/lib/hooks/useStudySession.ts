@@ -16,6 +16,7 @@ interface UseStudySessionResult {
   start(): Promise<void>;
   repeat(): Promise<void>;
   next(): Promise<void>;
+  playSingle(url: string): Promise<void>;
 }
 
 export function useStudySession(): UseStudySessionResult {
@@ -85,5 +86,19 @@ export function useStudySession(): UseStudySessionResult {
     }
   }, [fetchAndSet, playItem]);
 
-  return { currentItem, phase, errorMessage, start, repeat, next };
+  const playSingle = useCallback(
+    async (url: string) => {
+      setPhase("playing");
+      try {
+        await play([url]);
+        setPhase("ready");
+      } catch {
+        setErrorMessage("音声の再生に失敗しました。");
+        setPhase("ready");
+      }
+    },
+    [play]
+  );
+
+  return { currentItem, phase, errorMessage, start, repeat, next, playSingle };
 }

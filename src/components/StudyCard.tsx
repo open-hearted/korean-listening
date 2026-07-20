@@ -11,7 +11,7 @@ import {
 } from "@/lib/korean/soundChangeAnalysis";
 
 export function StudyCard() {
-  const { currentItem, phase, errorMessage, start, repeat, next } =
+  const { currentItem, phase, errorMessage, start, repeat, next, playSingle } =
     useStudySession();
 
   const isBusy = phase === "loading" || phase === "playing";
@@ -22,7 +22,12 @@ export function StudyCard() {
       <div className="flex min-h-[8rem] w-full flex-col items-center justify-center gap-3">
         {currentItem ? (
           // currentItem.id を key にすることで、問題が変わるたびにハングル表示状態がリセットされる
-          <StudyItemDisplay key={currentItem.id} item={currentItem} />
+          <StudyItemDisplay
+            key={currentItem.id}
+            item={currentItem}
+            isBusy={isBusy}
+            onPlaySingle={playSingle}
+          />
         ) : (
           <p className="text-lg text-gray-500">
             「▶ 開始」を押して学習を始めてください
@@ -71,7 +76,15 @@ export function StudyCard() {
   );
 }
 
-function StudyItemDisplay({ item }: { item: StudyItem }) {
+function StudyItemDisplay({
+  item,
+  isBusy,
+  onPlaySingle,
+}: {
+  item: StudyItem;
+  isBusy: boolean;
+  onPlaySingle: (url: string) => Promise<void>;
+}) {
   const [showHangul, setShowHangul] = useState(false);
   const [showEnSyllables, setShowEnSyllables] = useState(false);
   const [showSoundChange, setShowSoundChange] = useState(false);
@@ -96,18 +109,30 @@ function StudyItemDisplay({ item }: { item: StudyItem }) {
   return (
     <>
       {item.jaIpa && (
-        <p className="break-words text-2xl text-gray-500 sm:text-3xl">
-          {item.jaIpa}
-        </p>
+        <IpaLine
+          text={item.jaIpa}
+          audioUrl={item.jaAudioUrl}
+          isBusy={isBusy}
+          onPlaySingle={onPlaySingle}
+          textClassName="break-words text-2xl text-gray-500 sm:text-3xl"
+        />
       )}
       {item.enIpa && (
-        <p className="break-words text-3xl font-semibold sm:text-4xl">
-          {item.enIpa}
-        </p>
+        <IpaLine
+          text={item.enIpa}
+          audioUrl={item.enAudioUrl}
+          isBusy={isBusy}
+          onPlaySingle={onPlaySingle}
+          textClassName="break-words text-3xl font-semibold sm:text-4xl"
+        />
       )}
-      <p className="break-words text-5xl font-bold tracking-wide sm:text-6xl md:text-7xl">
-        {item.ipa}
-      </p>
+      <IpaLine
+        text={item.ipa}
+        audioUrl={item.koAudioUrl}
+        isBusy={isBusy}
+        onPlaySingle={onPlaySingle}
+        textClassName="break-words text-5xl font-bold tracking-wide sm:text-6xl md:text-7xl"
+      />
 
       <div className="flex min-h-[10rem] w-full flex-col items-center justify-center gap-2">
         {showSoundChange ? (
@@ -157,6 +182,38 @@ function StudyItemDisplay({ item }: { item: StudyItem }) {
         </button>
       </div>
     </>
+  );
+}
+
+function IpaLine({
+  text,
+  audioUrl,
+  isBusy,
+  onPlaySingle,
+  textClassName,
+}: {
+  text: string;
+  audioUrl: string | null;
+  isBusy: boolean;
+  onPlaySingle: (url: string) => Promise<void>;
+  textClassName: string;
+}) {
+  return (
+    <div className="flex w-full items-center justify-center gap-1">
+      {audioUrl && <div className="h-11 w-11 shrink-0" aria-hidden="true" />}
+      <p className={textClassName}>{text}</p>
+      {audioUrl && (
+        <button
+          type="button"
+          onClick={() => void onPlaySingle(audioUrl)}
+          disabled={isBusy}
+          aria-label="この言語の音声を再生"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg text-gray-400 hover:text-gray-600 disabled:opacity-40"
+        >
+          🔊
+        </button>
+      )}
+    </div>
   );
 }
 
