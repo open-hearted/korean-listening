@@ -1,11 +1,92 @@
 [
   {
-    "ja_text": "ありがとうございます",
-    "ko_text": "감사합니다",
-    "en_text": "thank you",
-    "ipa": "kam.sa.ham.ni.da",
-    "ja_ipa": "a.ɾi.ga.toː.go.za.i.ma.s",
-    "en_ipa": "ˈθæŋ.kjuː",
-    "en_syllables": "thank·you"
+    "ja_text": "はじめまして",
+    "ko_text": "만나서 반갑습니다",
+    "en_text": "nice to meet you",
+    "ipa": "man.na.sʌ.pan.kap̚.s͈ɯm.ni.da",
+    "ja_ipa": "ha.dʑi.me.ma.ɕi.te",
+    "en_ipa": "naɪs.tə.ˈmiːt.juː",
+    "en_syllables": "nice·to·meet·you"
+  },
+  {
+    "ja_text": "すみません",
+    "ko_text": "죄송합니다",
+    "en_text": "I'm sorry",
+    "ipa": "tɕwe.soŋ.ham.ni.da",
+    "ja_ipa": "sɯ.mi.ma.seɴ",
+    "en_ipa": "aɪm.ˈsɑ.ri",
+    "en_syllables": "I'm·sor·ry"
+  },
+  {
+    "ja_text": "大丈夫です",
+    "ko_text": "괜찮아요",
+    "en_text": "it's okay",
+    "ipa": "kwɛn.tɕʰa.na.jo",
+    "ja_ipa": "da.i.dʑoː.bɯ.de.s",
+    "en_ipa": "ɪts.oʊ.ˈkeɪ",
+    "en_syllables": "it's·o·kay"
+  },
+  {
+    "ja_text": "水をください",
+    "ko_text": "물 주세요",
+    "en_text": "water, please",
+    "ipa": "mul.tɕu.se.jo",
+    "ja_ipa": "mi.zɯ.o.kɯ.da.sa.i",
+    "en_ipa": "ˈwɔ.tɚ.pliːz",
+    "en_syllables": "wa·ter·please"
+  },
+  {
+    "ja_text": "どこですか",
+    "ko_text": "어디예요?",
+    "en_text": "where is it?",
+    "ipa": "ʌ.ti.je.jo",
+    "ja_ipa": "do.ko.de.sɯ.ka",
+    "en_ipa": "ˈwɛr.ɪz.ɪt",
+    "en_syllables": "where·is·it"
+  },
+  {
+    "ja_text": "いくらですか",
+    "ko_text": "얼마예요?",
+    "en_text": "how much is it?",
+    "ipa": "ʌl.ma.je.jo",
+    "ja_ipa": "i.kɯ.ɾa.de.sɯ.ka",
+    "en_ipa": "haʊ.ˈmʌtʃ.ɪz.ɪt",
+    "en_syllables": "how·much·is·it"
+  },
+  {
+    "ja_text": "分かりました",
+    "ko_text": "알겠습니다",
+    "en_text": "I understand",
+    "ipa": "al.ket̚.s͈ɯm.ni.da",
+    "ja_ipa": "wa.ka.ɾi.ma.ɕi.ta",
+    "en_ipa": "aɪ.ʌn.dɚ.ˈstænd",
+    "en_syllables": "I·un·der·stand"
+  },
+  {
+    "ja_text": "愛しています",
+    "ko_text": "사랑해요",
+    "en_text": "I love you",
+    "ipa": "sa.ɾaŋ.hɛ.jo",
+    "ja_ipa": "a.i.ɕi.te.i.ma.s",
+    "en_ipa": "aɪ.ˈlʌv.juː",
+    "en_syllables": "I·love·you"
+  },
+  {
+    "ja_text": "これをください",
+    "ko_text": "이거 주세요",
+    "en_text": "this one, please",
+    "ipa": "i.kʌ.tɕu.se.jo",
+    "ja_ipa": "ko.ɾe.o.kɯ.da.sa.i",
+    "en_ipa": "ðɪs.ˈwʌn.pliːz",
+    "en_syllables": "this·one·please"
+  },
+  {
+    "ja_text": "おやすみなさい",
+    "ko_text": "잘 자요",
+    "en_text": "good night",
+    "ipa": "tɕal.tɕa.jo",
+    "ja_ipa": "o.ja.sɯ.mi.na.sa.i",
+    "en_ipa": "ɡʊd.ˈnaɪt",
+    "en_syllables": "good·night"
   }
 ]
