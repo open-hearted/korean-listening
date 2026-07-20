@@ -31,13 +31,6 @@ export function StudyCard() {
         </p>
       )}
 
-      {phase === "loading" && (
-        <p className="text-sm text-gray-500">読み込み中...</p>
-      )}
-      {phase === "playing" && (
-        <p className="text-sm text-gray-500">再生中...</p>
-      )}
-
       <div className="flex w-full max-w-xs flex-col gap-3">
         {!hasStarted ? (
           <button
