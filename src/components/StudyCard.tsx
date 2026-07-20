@@ -1,10 +1,14 @@
 // IPA表示と操作ボタンを持つ学習カード（答えとなるテキストは表示しない）
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useStudySession } from "@/lib/hooks/useStudySession";
 import type { StudyItem } from "@/lib/repository/types";
 import { toLiteralIpa } from "@/lib/korean/koLiteralIpa";
+import {
+  detectSoundChangeArrows,
+  diffSyllablePhonemes,
+} from "@/lib/korean/soundChangeAnalysis";
 
 export function StudyCard() {
   const { currentItem, phase, errorMessage, start, repeat, next } =
@@ -72,10 +76,22 @@ function StudyItemDisplay({ item }: { item: StudyItem }) {
   const [showEnSyllables, setShowEnSyllables] = useState(false);
   const [showSoundChange, setShowSoundChange] = useState(false);
 
-  const literalIpa = toLiteralIpa(item.koText);
-  const literalSyllables = literalIpa.split(".");
-  const actualSyllables = item.ipa.split(".");
+  const hangulSyllables = useMemo(() => Array.from(item.koText), [item.koText]);
+  const literalSyllables = useMemo(
+    () => toLiteralIpa(item.koText).split("."),
+    [item.koText]
+  );
+  const actualSyllables = useMemo(() => item.ipa.split("."), [item.ipa]);
   const syllablesAlign = literalSyllables.length === actualSyllables.length;
+  const hangulAligns = hangulSyllables.length === literalSyllables.length;
+
+  const arrows = useMemo(
+    () =>
+      syllablesAlign
+        ? detectSoundChangeArrows(literalSyllables, actualSyllables)
+        : [],
+    [syllablesAlign, literalSyllables, actualSyllables]
+  );
 
   return (
     <>
@@ -93,25 +109,21 @@ function StudyItemDisplay({ item }: { item: StudyItem }) {
         {item.ipa}
       </p>
 
-      <div className="flex min-h-[8rem] w-full flex-col items-center justify-center gap-2">
-        {showSoundChange && (
-          <div className="flex flex-col items-center gap-1">
-            <SyllableRow
-              syllables={literalSyllables}
-              compareTo={syllablesAlign ? actualSyllables : null}
-              label="文字通り"
-            />
-            <SyllableRow
-              syllables={actualSyllables}
-              compareTo={syllablesAlign ? literalSyllables : null}
-              label="実際"
-            />
-          </div>
-        )}
-        {showHangul && (
-          <p className="break-words text-5xl font-bold tracking-wide sm:text-6xl md:text-7xl">
-            {item.koText}
-          </p>
+      <div className="flex min-h-[10rem] w-full flex-col items-center justify-center gap-2">
+        {showSoundChange ? (
+          <SoundChangeGrid
+            hangulSyllables={hangulAligns ? hangulSyllables : null}
+            literalSyllables={literalSyllables}
+            actualSyllables={actualSyllables}
+            syllablesAlign={syllablesAlign}
+            arrows={arrows}
+          />
+        ) : (
+          showHangul && (
+            <p className="break-words text-5xl font-bold tracking-wide sm:text-6xl md:text-7xl">
+              {item.koText}
+            </p>
+          )
         )}
         {showEnSyllables && item.enSyllables && (
           <p className="break-words text-2xl tracking-wide text-gray-700 sm:text-3xl">
@@ -148,36 +160,159 @@ function StudyItemDisplay({ item }: { item: StudyItem }) {
   );
 }
 
-function SyllableRow({
-  syllables,
-  compareTo,
-  label,
+const COLUMN_WIDTH_PX = 56;
+
+function SoundChangeGrid({
+  hangulSyllables,
+  literalSyllables,
+  actualSyllables,
+  syllablesAlign,
+  arrows,
 }: {
-  syllables: string[];
-  compareTo: string[] | null;
-  label: string;
+  hangulSyllables: string[] | null;
+  literalSyllables: string[];
+  actualSyllables: string[];
+  syllablesAlign: boolean;
+  arrows: SoundChangeArrowType[];
 }) {
+  const columnCount = Math.max(literalSyllables.length, actualSyllables.length);
+  const gridWidth = columnCount * COLUMN_WIDTH_PX;
+
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-16 shrink-0 text-right text-xs text-gray-400">
-        {label}
-      </span>
-      <div className="flex gap-1">
-        {syllables.map((syllable, index) => {
-          const isDifferent =
-            compareTo !== null && compareTo[index] !== syllable;
-          return (
+    <div className="flex flex-col items-center gap-1">
+      {hangulSyllables && (
+        <div
+          className="grid"
+          style={{
+            gridTemplateColumns: `repeat(${hangulSyllables.length}, ${COLUMN_WIDTH_PX}px)`,
+          }}
+        >
+          {hangulSyllables.map((syllable, index) => (
             <span
               key={index}
-              className={`inline-block min-w-[2.5rem] text-center text-lg font-semibold sm:text-xl ${
-                isDifferent ? "text-red-600" : "text-gray-500"
-              }`}
+              className="text-center text-3xl font-bold tracking-wide sm:text-4xl"
             >
               {syllable}
             </span>
-          );
-        })}
+          ))}
+        </div>
+      )}
+
+      <div className="relative" style={{ width: gridWidth }}>
+        {syllablesAlign && arrows.length > 0 && (
+          <SoundChangeArrows arrows={arrows} columnCount={columnCount} />
+        )}
+        <PhonemeRow
+          syllables={literalSyllables}
+          compareSyllables={syllablesAlign ? actualSyllables : null}
+          role="literal"
+        />
+        <PhonemeRow
+          syllables={actualSyllables}
+          compareSyllables={syllablesAlign ? literalSyllables : null}
+          role="actual"
+        />
       </div>
+    </div>
+  );
+}
+
+type SoundChangeArrowType = { fromSyllableIndex: number; toSyllableIndex: number };
+
+function SoundChangeArrows({
+  arrows,
+  columnCount,
+}: {
+  arrows: SoundChangeArrowType[];
+  columnCount: number;
+}) {
+  const height = 20;
+  const width = columnCount * COLUMN_WIDTH_PX;
+
+  return (
+    <svg
+      className="pointer-events-none absolute left-0 top-0 -translate-y-full"
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      aria-hidden="true"
+    >
+      {arrows.map((arrow, index) => {
+        const fromX = arrow.fromSyllableIndex * COLUMN_WIDTH_PX + COLUMN_WIDTH_PX / 2;
+        const toX = arrow.toSyllableIndex * COLUMN_WIDTH_PX + COLUMN_WIDTH_PX / 2;
+        const midX = (fromX + toX) / 2;
+        return (
+          <path
+            key={index}
+            d={`M ${fromX} ${height} Q ${midX} 0 ${toX} ${height}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            className="text-gray-400"
+            markerEnd={`url(#arrowhead-${index})`}
+          />
+        );
+      })}
+      <defs>
+        {arrows.map((_, index) => (
+          <marker
+            key={index}
+            id={`arrowhead-${index}`}
+            markerWidth={6}
+            markerHeight={6}
+            refX={5}
+            refY={3}
+            orient="auto"
+          >
+            <path d="M0,0 L6,3 L0,6 Z" className="fill-gray-400" />
+          </marker>
+        ))}
+      </defs>
+    </svg>
+  );
+}
+
+function PhonemeRow({
+  syllables,
+  compareSyllables,
+  role,
+}: {
+  syllables: string[];
+  compareSyllables: string[] | null;
+  role: "literal" | "actual";
+}) {
+  return (
+    <div
+      className="grid"
+      style={{
+        gridTemplateColumns: `repeat(${syllables.length}, ${COLUMN_WIDTH_PX}px)`,
+      }}
+    >
+      {syllables.map((syllable, index) => {
+        const compareSyllable = compareSyllables?.[index] ?? null;
+        const { clusters, changed } =
+          compareSyllable !== null
+            ? role === "literal"
+              ? diffSyllablePhonemes(syllable, compareSyllable).literalDiff
+              : diffSyllablePhonemes(compareSyllable, syllable).actualDiff
+            : { clusters: Array.from(syllable), changed: Array.from(syllable).map(() => false) };
+
+        return (
+          <span
+            key={index}
+            className="text-center text-lg font-semibold text-gray-500 sm:text-xl"
+          >
+            {clusters.map((cluster, clusterIndex) => (
+              <span
+                key={clusterIndex}
+                className={changed[clusterIndex] ? "text-red-600" : undefined}
+              >
+                {cluster}
+              </span>
+            ))}
+          </span>
+        );
+      })}
     </div>
   );
 }
