@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { useStudySession } from "@/lib/hooks/useStudySession";
 import type { StudyItem } from "@/lib/repository/types";
+import { toLiteralIpa } from "@/lib/korean/koLiteralIpa";
 
 export function StudyCard() {
   const { currentItem, phase, errorMessage, start, repeat, next } =
@@ -69,6 +70,12 @@ export function StudyCard() {
 function StudyItemDisplay({ item }: { item: StudyItem }) {
   const [showHangul, setShowHangul] = useState(false);
   const [showEnSyllables, setShowEnSyllables] = useState(false);
+  const [showSoundChange, setShowSoundChange] = useState(false);
+
+  const literalIpa = toLiteralIpa(item.koText);
+  const literalSyllables = literalIpa.split(".");
+  const actualSyllables = item.ipa.split(".");
+  const syllablesAlign = literalSyllables.length === actualSyllables.length;
 
   return (
     <>
@@ -86,7 +93,21 @@ function StudyItemDisplay({ item }: { item: StudyItem }) {
         {item.ipa}
       </p>
 
-      <div className="flex min-h-[4rem] w-full flex-col items-center justify-center gap-2">
+      <div className="flex min-h-[8rem] w-full flex-col items-center justify-center gap-2">
+        {showSoundChange && (
+          <div className="flex flex-col items-center gap-1">
+            <SyllableRow
+              syllables={literalSyllables}
+              compareTo={syllablesAlign ? actualSyllables : null}
+              label="文字通り"
+            />
+            <SyllableRow
+              syllables={actualSyllables}
+              compareTo={syllablesAlign ? literalSyllables : null}
+              label="実際"
+            />
+          </div>
+        )}
         {showHangul && (
           <p className="break-words text-5xl font-bold tracking-wide sm:text-6xl md:text-7xl">
             {item.koText}
@@ -99,7 +120,7 @@ function StudyItemDisplay({ item }: { item: StudyItem }) {
         )}
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex flex-wrap justify-center gap-4">
         <button
           type="button"
           onClick={() => setShowHangul((prev) => !prev)}
@@ -115,7 +136,48 @@ function StudyItemDisplay({ item }: { item: StudyItem }) {
         >
           {showEnSyllables ? "英語スペルを隠す" : "英語スペルを表示"}
         </button>
+        <button
+          type="button"
+          onClick={() => setShowSoundChange((prev) => !prev)}
+          className="text-sm font-medium text-gray-500 underline"
+        >
+          {showSoundChange ? "音変化を隠す" : "音変化を表示"}
+        </button>
       </div>
     </>
+  );
+}
+
+function SyllableRow({
+  syllables,
+  compareTo,
+  label,
+}: {
+  syllables: string[];
+  compareTo: string[] | null;
+  label: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-16 shrink-0 text-right text-xs text-gray-400">
+        {label}
+      </span>
+      <div className="flex gap-1">
+        {syllables.map((syllable, index) => {
+          const isDifferent =
+            compareTo !== null && compareTo[index] !== syllable;
+          return (
+            <span
+              key={index}
+              className={`inline-block min-w-[2.5rem] text-center text-lg font-semibold sm:text-xl ${
+                isDifferent ? "text-red-600" : "text-gray-500"
+              }`}
+            >
+              {syllable}
+            </span>
+          );
+        })}
+      </div>
+    </div>
   );
 }
