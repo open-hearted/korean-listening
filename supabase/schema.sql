@@ -4,6 +4,7 @@ create table study_items (
   ja_text text not null,
   ko_text text not null,
   ipa text not null,
+  ja_ipa text,
   ja_audio_url text not null,
   ko_audio_url text not null,
   created_at timestamptz default now()

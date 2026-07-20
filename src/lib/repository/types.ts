@@ -4,6 +4,7 @@ export interface StudyItem {
   jaText: string;
   koText: string;
   ipa: string;
+  jaIpa: string | null;
   jaAudioUrl: string;
   koAudioUrl: string;
 }

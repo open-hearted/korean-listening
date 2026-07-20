@@ -1,7 +1,9 @@
 // IPA表示と操作ボタンを持つ学習カード（答えとなるテキストは表示しない）
 "use client";
 
+import { useState } from "react";
 import { useStudySession } from "@/lib/hooks/useStudySession";
+import type { StudyItem } from "@/lib/repository/types";
 
 export function StudyCard() {
   const { currentItem, phase, errorMessage, start, repeat, next } =
@@ -12,11 +14,10 @@ export function StudyCard() {
 
   return (
     <div className="flex min-h-[70vh] w-full flex-col items-center justify-center gap-8 px-4 text-center">
-      <div className="flex min-h-[8rem] w-full items-center justify-center">
+      <div className="flex min-h-[8rem] w-full flex-col items-center justify-center gap-3">
         {currentItem ? (
-          <p className="break-words text-5xl font-bold tracking-wide sm:text-6xl md:text-7xl">
-            {currentItem.ipa}
-          </p>
+          // currentItem.id を key にすることで、問題が変わるたびにハングル表示状態がリセットされる
+          <StudyItemDisplay key={currentItem.id} item={currentItem} />
         ) : (
           <p className="text-lg text-gray-500">
             「▶ 開始」を押して学習を始めてください
@@ -69,5 +70,34 @@ export function StudyCard() {
         )}
       </div>
     </div>
+  );
+}
+
+function StudyItemDisplay({ item }: { item: StudyItem }) {
+  const [showHangul, setShowHangul] = useState(false);
+
+  return (
+    <>
+      {item.jaIpa && (
+        <p className="break-words text-2xl text-gray-500 sm:text-3xl">
+          {item.jaIpa}
+        </p>
+      )}
+      <p className="break-words text-5xl font-bold tracking-wide sm:text-6xl md:text-7xl">
+        {item.ipa}
+      </p>
+      {showHangul && (
+        <p className="break-words text-5xl font-bold tracking-wide sm:text-6xl md:text-7xl">
+          {item.koText}
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={() => setShowHangul((prev) => !prev)}
+        className="text-sm font-medium text-gray-500 underline"
+      >
+        {showHangul ? "ハングルを隠す" : "ハングルを表示"}
+      </button>
+    </>
   );
 }

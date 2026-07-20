@@ -7,6 +7,7 @@ interface StudyItemRow {
   ja_text: string;
   ko_text: string;
   ipa: string;
+  ja_ipa: string | null;
   ja_audio_url: string;
   ko_audio_url: string;
 }
@@ -17,6 +18,7 @@ function toStudyItem(row: StudyItemRow): StudyItem {
     jaText: row.ja_text,
     koText: row.ko_text,
     ipa: row.ipa,
+    jaIpa: row.ja_ipa,
     jaAudioUrl: row.ja_audio_url,
     koAudioUrl: row.ko_audio_url,
   };
