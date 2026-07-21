@@ -24,3 +24,11 @@ export interface StudyItemRepository {
   /** filter に合致するデータから1件取得。現状はランダム1件 */
   fetchNext(filter?: StudyFilter): Promise<StudyItem | null>;
 }
+
+/** 再生ログの種類。full/repeatは3言語連続再生、ja/en/koは言語別単体再生 */
+export type PlayType = "full" | "repeat" | "ja" | "en" | "ko";
+
+export interface PlayLogRepository {
+  /** 再生開始時点で1行記録する。完了を待たないfire-and-forget */
+  record(playType: PlayType, studyItemId: string): void;
+}
