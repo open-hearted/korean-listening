@@ -1,5 +1,6 @@
 // Supabase の play_logs テーブルへ再生ログを記録するリポジトリ実装
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { notifyPlayLogRecorded } from "@/lib/events/playLogEvents";
 import type { PlayLogRepository, PlayType } from "./types";
 
 export class SupabasePlayLogRepository implements PlayLogRepository {
@@ -27,7 +28,10 @@ export class SupabasePlayLogRepository implements PlayLogRepository {
 
       if (error) {
         console.error("play_logs insert failed", error);
+        return;
       }
+
+      notifyPlayLogRecorded();
     } catch (error) {
       console.error("play_logs insert failed", error);
     }

@@ -44,3 +44,8 @@ export interface InsightRepository {
   /** 指定した例文に紐づく気付きを新しい順で取得する */
   list(studyItemId: string): Promise<Insight[]>;
 }
+
+export interface DailyProgressRepository {
+  /** 本日(ローカル日付)にplay_logsへ記録された、重複を除いたstudy_item_id数を取得する */
+  fetchTodayStudiedCount(): Promise<number>;
+}
