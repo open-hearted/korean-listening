@@ -32,3 +32,15 @@ export interface PlayLogRepository {
   /** 再生開始時点で1行記録する。完了を待たないfire-and-forget */
   record(playType: PlayType, studyItemId: string): void;
 }
+
+export interface Insight {
+  id: string;
+  note: string;
+  createdAt: string;
+}
+
+export interface InsightRepository {
+  save(studyItemId: string, note: string): Promise<void>;
+  /** 指定した例文に紐づく気付きを新しい順で取得する */
+  list(studyItemId: string): Promise<Insight[]>;
+}

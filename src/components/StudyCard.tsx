@@ -1,9 +1,11 @@
 // IPA表示と操作ボタンを持つ学習カード（答えとなるテキストは表示しない）
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStudySession } from "@/lib/hooks/useStudySession";
-import type { StudyItem } from "@/lib/repository/types";
+import { createClient } from "@/lib/supabase/client";
+import { SupabaseInsightRepository } from "@/lib/repository/insightRepository";
+import type { Insight, StudyItem } from "@/lib/repository/types";
 import { toLiteralIpa } from "@/lib/korean/koLiteralIpa";
 import {
   detectSoundChangeArrows,
@@ -186,6 +188,7 @@ function StudyItemDisplay({
       </div>
 
       <AskAiSection item={item} />
+      <InsightSection item={item} />
     </>
   );
 }
@@ -290,6 +293,121 @@ function AskAiSection({ item }: { item: StudyItem }) {
                 {answer}
               </p>
             )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InsightSection({ item }: { item: StudyItem }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [note, setNote] = useState("");
+  const [insights, setInsights] = useState<Insight[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingList, setIsLoadingList] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const repositoryRef = useRef<SupabaseInsightRepository | null>(null);
+  if (!repositoryRef.current) {
+    repositoryRef.current = new SupabaseInsightRepository(createClient());
+  }
+
+  const hasLoadedRef = useRef(false);
+
+  const loadInsights = useCallback(async () => {
+    setIsLoadingList(true);
+    try {
+      const list = await repositoryRef.current!.list(item.id);
+      setInsights(list);
+    } catch {
+      setErrorMessage("気付きの取得に失敗しました。");
+    } finally {
+      setIsLoadingList(false);
+    }
+  }, [item.id]);
+
+  useEffect(() => {
+    if (isOpen && !hasLoadedRef.current) {
+      hasLoadedRef.current = true;
+      void loadInsights();
+    }
+  }, [isOpen, loadInsights]);
+
+  const handleSave = async () => {
+    const trimmed = note.trim();
+    if (!trimmed || isSaving) return;
+
+    setIsSaving(true);
+    setErrorMessage(null);
+    setSaveMessage(null);
+
+    try {
+      await repositoryRef.current!.save(item.id, trimmed);
+      setNote("");
+      setSaveMessage("保存しました");
+      await loadInsights();
+    } catch {
+      setErrorMessage("保存に失敗しました。");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-md">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="text-sm font-medium text-gray-500 underline"
+      >
+        {isOpen ? "気付きメモを閉じる" : "気付きメモ"}
+      </button>
+
+      {isOpen && (
+        <div className="mt-3 flex flex-col gap-2">
+          <textarea
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            disabled={isSaving}
+            placeholder="この例文についての気付きをメモする"
+            rows={3}
+            className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
+          />
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={isSaving || note.trim() === ""}
+            className="self-end rounded-full bg-gray-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {isSaving ? "保存中…" : "保存"}
+          </button>
+
+          <div className="min-h-[1.5rem] text-left">
+            {errorMessage && (
+              <p className="text-sm text-red-600" role="alert">
+                {errorMessage}
+              </p>
+            )}
+            {!errorMessage && saveMessage && (
+              <p className="text-sm text-green-600">{saveMessage}</p>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 text-left">
+            {isLoadingList && (
+              <p className="text-sm text-gray-400">読み込み中…</p>
+            )}
+            {!isLoadingList &&
+              insights.map((insight) => (
+                <p
+                  key={insight.id}
+                  className="whitespace-pre-wrap rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-800"
+                >
+                  {insight.note}
+                </p>
+              ))}
           </div>
         </div>
       )}
