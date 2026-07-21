@@ -1,0 +1,117 @@
+// 出題中の例文についてAIに質問するAPI（Anthropic APIはサーバー側でのみ呼び出す）
+import { NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
+import { createClient } from "@/lib/supabase/server";
+
+interface AskAiContext {
+  ipa: string;
+  jaIpa: string | null;
+  enIpa: string | null;
+  koText: string;
+  jaText: string;
+  enText: string | null;
+}
+
+interface AskAiRequestBody {
+  question: string;
+  studyItemId: string;
+  context: AskAiContext;
+}
+
+const SYSTEM_PROMPT =
+  "あなたは韓国語の発音・音韻を日本語話者に説明する講師です。IPA記法を使い、簡潔に答えてください。表示中の例文の情報を文脈として与えます。";
+
+function isAskAiRequestBody(value: unknown): value is AskAiRequestBody {
+  if (typeof value !== "object" || value === null) return false;
+  const body = value as Record<string, unknown>;
+  if (typeof body.question !== "string" || body.question.trim() === "") return false;
+  if (typeof body.studyItemId !== "string" || body.studyItemId.trim() === "") return false;
+  if (typeof body.context !== "object" || body.context === null) return false;
+  const context = body.context as Record<string, unknown>;
+  return (
+    typeof context.ipa === "string" &&
+    typeof context.koText === "string" &&
+    (typeof context.jaText === "string" || context.jaText === null || context.jaText === undefined)
+  );
+}
+
+function buildContextText(context: AskAiContext): string {
+  const lines = [
+    `韓国語: ${context.koText}`,
+    `IPA: ${context.ipa}`,
+    context.jaIpa ? `日本語IPA: ${context.jaIpa}` : null,
+    context.enIpa ? `英語IPA: ${context.enIpa}` : null,
+    `日本語訳: ${context.jaText}`,
+    context.enText ? `英語訳: ${context.enText}` : null,
+  ].filter((line): line is string => line !== null);
+
+  return `【表示中の例文】\n${lines.join("\n")}`;
+}
+
+export async function POST(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "ログインが必要です。" }, { status: 401 });
+  }
+
+  const body: unknown = await request.json().catch(() => null);
+  if (!isAskAiRequestBody(body)) {
+    return NextResponse.json({ error: "リクエストの形式が正しくありません。" }, { status: 400 });
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "AI機能が設定されていません。" },
+      { status: 500 }
+    );
+  }
+
+  const anthropic = new Anthropic({ apiKey });
+
+  let answer: string;
+  try {
+    const message = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 1024,
+      system: SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: `${buildContextText(body.context)}\n\n【質問】\n${body.question}`,
+        },
+      ],
+    });
+
+    const textBlock = message.content.find((block) => block.type === "text");
+    if (!textBlock || textBlock.type !== "text") {
+      throw new Error("empty response");
+    }
+    answer = textBlock.text;
+  } catch {
+    return NextResponse.json(
+      { error: "AIへの問い合わせに失敗しました。" },
+      { status: 502 }
+    );
+  }
+
+  const { error: insertError } = await supabase.from("ai_questions").insert({
+    user_id: user.id,
+    study_item_id: body.studyItemId,
+    question: body.question,
+    answer,
+  });
+
+  if (insertError) {
+    return NextResponse.json(
+      { error: "回答の保存に失敗しました。" },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ answer });
+}

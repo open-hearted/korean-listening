@@ -181,7 +181,116 @@ function StudyItemDisplay({
           {showSoundChange ? "音変化を隠す" : "音変化を表示"}
         </button>
       </div>
+
+      <AskAiSection item={item} />
     </>
+  );
+}
+
+function AskAiSection({ item }: { item: StudyItem }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleAsk = async () => {
+    const trimmed = question.trim();
+    if (!trimmed || isLoading) return;
+
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await fetch("/api/ask-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: trimmed,
+          studyItemId: item.id,
+          context: {
+            ipa: item.ipa,
+            jaIpa: item.jaIpa,
+            enIpa: item.enIpa,
+            koText: item.koText,
+            jaText: item.jaText,
+            enText: item.enText,
+          },
+        }),
+      });
+
+      const data: unknown = await response.json();
+      if (!response.ok) {
+        const message =
+          typeof data === "object" && data !== null && "error" in data && typeof (data as { error: unknown }).error === "string"
+            ? (data as { error: string }).error
+            : "AIへの問い合わせに失敗しました。";
+        setErrorMessage(message);
+        return;
+      }
+
+      const answerText =
+        typeof data === "object" && data !== null && "answer" in data && typeof (data as { answer: unknown }).answer === "string"
+          ? (data as { answer: string }).answer
+          : null;
+
+      if (!answerText) {
+        setErrorMessage("AIへの問い合わせに失敗しました。");
+        return;
+      }
+
+      setAnswer(answerText);
+    } catch {
+      setErrorMessage("AIへの問い合わせに失敗しました。");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-md">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="text-sm font-medium text-gray-500 underline"
+      >
+        {isOpen ? "AIに質問を閉じる" : "AIに質問"}
+      </button>
+
+      {isOpen && (
+        <div className="mt-3 flex flex-col gap-2">
+          <textarea
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            disabled={isLoading}
+            placeholder="この例文について質問する"
+            rows={2}
+            className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
+          />
+          <button
+            type="button"
+            onClick={() => void handleAsk()}
+            disabled={isLoading || question.trim() === ""}
+            className="self-end rounded-full bg-gray-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {isLoading ? "質問中…" : "質問する"}
+          </button>
+
+          <div className="min-h-[2rem] text-left">
+            {errorMessage && (
+              <p className="text-sm text-red-600" role="alert">
+                {errorMessage}
+              </p>
+            )}
+            {!errorMessage && answer && (
+              <p className="whitespace-pre-wrap rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-800">
+                {answer}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
