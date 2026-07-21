@@ -90,6 +90,9 @@ function StudyItemDisplay({
   const [showHangul, setShowHangul] = useState(false);
   const [showEnSyllables, setShowEnSyllables] = useState(false);
   const [showSoundChange, setShowSoundChange] = useState(false);
+  const [showIpa, setShowIpa] = useState(true);
+
+  const enAudioUrl = item.enAudioUrl;
 
   const hangulSyllables = useMemo(() => Array.from(item.koText), [item.koText]);
   const literalSyllables = useMemo(
@@ -110,34 +113,75 @@ function StudyItemDisplay({
 
   return (
     <>
-      {item.jaIpa && (
+      <div
+        className={`flex w-full flex-col items-center gap-3${showIpa ? "" : " invisible"}`}
+        aria-hidden={!showIpa}
+      >
+        {item.jaIpa && (
+          <IpaLine
+            text={item.jaIpa}
+            audioUrl={item.jaAudioUrl}
+            playType="ja"
+            isBusy={isBusy}
+            onPlaySingle={onPlaySingle}
+            textClassName="break-words text-2xl text-gray-500 sm:text-3xl"
+          />
+        )}
+        {item.enIpa && (
+          <IpaLine
+            text={item.enIpa}
+            audioUrl={item.enAudioUrl}
+            playType="en"
+            isBusy={isBusy}
+            onPlaySingle={onPlaySingle}
+            textClassName="break-words text-3xl font-semibold sm:text-4xl"
+          />
+        )}
         <IpaLine
-          text={item.jaIpa}
-          audioUrl={item.jaAudioUrl}
-          playType="ja"
+          text={item.ipa}
+          audioUrl={item.koAudioUrl}
+          playType="ko"
           isBusy={isBusy}
           onPlaySingle={onPlaySingle}
-          textClassName="break-words text-2xl text-gray-500 sm:text-3xl"
+          textClassName="break-words text-5xl font-bold tracking-wide sm:text-6xl md:text-7xl"
         />
+      </div>
+
+      {!showIpa && (
+        <div className="flex justify-center gap-3">
+          {item.jaIpa && (
+            <button
+              type="button"
+              onClick={() => void onPlaySingle(item.jaAudioUrl, "ja")}
+              disabled={isBusy}
+              aria-label="日本語の音声を再生"
+              className="rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-600 disabled:opacity-40"
+            >
+              🔊 日
+            </button>
+          )}
+          {item.enIpa && enAudioUrl && (
+            <button
+              type="button"
+              onClick={() => void onPlaySingle(enAudioUrl, "en")}
+              disabled={isBusy}
+              aria-label="英語の音声を再生"
+              className="rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-600 disabled:opacity-40"
+            >
+              🔊 英
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => void onPlaySingle(item.koAudioUrl, "ko")}
+            disabled={isBusy}
+            aria-label="韓国語の音声を再生"
+            className="rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-600 disabled:opacity-40"
+          >
+            🔊 韓
+          </button>
+        </div>
       )}
-      {item.enIpa && (
-        <IpaLine
-          text={item.enIpa}
-          audioUrl={item.enAudioUrl}
-          playType="en"
-          isBusy={isBusy}
-          onPlaySingle={onPlaySingle}
-          textClassName="break-words text-3xl font-semibold sm:text-4xl"
-        />
-      )}
-      <IpaLine
-        text={item.ipa}
-        audioUrl={item.koAudioUrl}
-        playType="ko"
-        isBusy={isBusy}
-        onPlaySingle={onPlaySingle}
-        textClassName="break-words text-5xl font-bold tracking-wide sm:text-6xl md:text-7xl"
-      />
 
       <div className="flex min-h-[10rem] w-full flex-col items-center justify-center gap-2">
         {showSoundChange ? (
@@ -163,6 +207,13 @@ function StudyItemDisplay({
       </div>
 
       <div className="flex flex-wrap justify-center gap-4">
+        <button
+          type="button"
+          onClick={() => setShowIpa((prev) => !prev)}
+          className="text-sm font-medium text-gray-500 underline"
+        >
+          {showIpa ? "IPAを隠す" : "IPAを表示"}
+        </button>
         <button
           type="button"
           onClick={() => setShowHangul((prev) => !prev)}
