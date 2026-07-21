@@ -1,6 +1,6 @@
-// 出題中の例文についてAIに質問するAPI（Anthropic APIはサーバー側でのみ呼び出す）
+// 出題中の例文についてAIに質問するAPI（OpenAI APIはサーバー側でのみ呼び出す）
 import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { createClient } from "@/lib/supabase/server";
 
 interface AskAiContext {
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "リクエストの形式が正しくありません。" }, { status: 400 });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
       { error: "AI機能が設定されていません。" },
@@ -71,15 +71,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const anthropic = new Anthropic({ apiKey });
+  const openai = new OpenAI({ apiKey });
 
   let answer: string;
   try {
-    const message = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
       max_tokens: 1024,
-      system: SYSTEM_PROMPT,
       messages: [
+        { role: "system", content: SYSTEM_PROMPT },
         {
           role: "user",
           content: `${buildContextText(body.context)}\n\n【質問】\n${body.question}`,
@@ -87,11 +87,11 @@ export async function POST(request: Request) {
       ],
     });
 
-    const textBlock = message.content.find((block) => block.type === "text");
-    if (!textBlock || textBlock.type !== "text") {
+    const content = completion.choices[0]?.message.content;
+    if (!content) {
       throw new Error("empty response");
     }
-    answer = textBlock.text;
+    answer = content;
   } catch {
     return NextResponse.json(
       { error: "AIへの問い合わせに失敗しました。" },
