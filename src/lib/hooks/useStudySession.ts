@@ -4,7 +4,8 @@
 import { useCallback, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { SupabaseStudyItemRepository } from "@/lib/repository/studyItemRepository";
-import type { StudyItem } from "@/lib/repository/types";
+import { SupabasePlayLogRepository } from "@/lib/repository/playLogRepository";
+import type { PlayType, StudyItem } from "@/lib/repository/types";
 import { useSequentialAudio } from "@/lib/audio/useSequentialAudio";
 
 type Phase = "idle" | "loading" | "ready" | "playing";
@@ -16,7 +17,7 @@ interface UseStudySessionResult {
   start(): Promise<void>;
   repeat(): Promise<void>;
   next(): Promise<void>;
-  playSingle(url: string): Promise<void>;
+  playSingle(url: string, playType: "ja" | "en" | "ko"): Promise<void>;
 }
 
 export function useStudySession(): UseStudySessionResult {
@@ -24,15 +25,26 @@ export function useStudySession(): UseStudySessionResult {
   const [phase, setPhase] = useState<Phase>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
+  if (!supabaseRef.current) {
+    supabaseRef.current = createClient();
+  }
+
   const repositoryRef = useRef<SupabaseStudyItemRepository | null>(null);
   if (!repositoryRef.current) {
-    repositoryRef.current = new SupabaseStudyItemRepository(createClient());
+    repositoryRef.current = new SupabaseStudyItemRepository(supabaseRef.current);
+  }
+
+  const playLogRepositoryRef = useRef<SupabasePlayLogRepository | null>(null);
+  if (!playLogRepositoryRef.current) {
+    playLogRepositoryRef.current = new SupabasePlayLogRepository(supabaseRef.current);
   }
 
   const { play } = useSequentialAudio();
 
   const playItem = useCallback(
-    async (item: StudyItem) => {
+    async (item: StudyItem, playType: PlayType) => {
+      playLogRepositoryRef.current!.record(playType, item.id);
       setPhase("playing");
       try {
         const urls = [item.jaAudioUrl, item.enAudioUrl, item.koAudioUrl].filter(
@@ -70,24 +82,27 @@ export function useStudySession(): UseStudySessionResult {
   const start = useCallback(async () => {
     const item = await fetchAndSet();
     if (item) {
-      await playItem(item);
+      await playItem(item, "full");
     }
   }, [fetchAndSet, playItem]);
 
   const repeat = useCallback(async () => {
     if (!currentItem) return;
-    await playItem(currentItem);
+    await playItem(currentItem, "repeat");
   }, [currentItem, playItem]);
 
   const next = useCallback(async () => {
     const item = await fetchAndSet();
     if (item) {
-      await playItem(item);
+      await playItem(item, "full");
     }
   }, [fetchAndSet, playItem]);
 
   const playSingle = useCallback(
-    async (url: string) => {
+    async (url: string, playType: "ja" | "en" | "ko") => {
+      if (currentItem) {
+        playLogRepositoryRef.current!.record(playType, currentItem.id);
+      }
       setPhase("playing");
       try {
         await play([url]);
@@ -97,7 +112,7 @@ export function useStudySession(): UseStudySessionResult {
         setPhase("ready");
       }
     },
-    [play]
+    [play, currentItem]
   );
 
   return { currentItem, phase, errorMessage, start, repeat, next, playSingle };
