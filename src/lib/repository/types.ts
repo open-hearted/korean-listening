@@ -49,3 +49,15 @@ export interface DailyProgressRepository {
   /** 本日(ローカル日付)にplay_logsへ記録された、重複を除いたstudy_item_id数を取得する */
   fetchTodayStudiedCount(): Promise<number>;
 }
+
+export interface AiQuestion {
+  id: string;
+  question: string;
+  answer: string;
+  createdAt: string;
+}
+
+export interface AiQuestionRepository {
+  /** 指定した例文に紐づくAI質問履歴を新しい順で取得する */
+  list(studyItemId: string): Promise<AiQuestion[]>;
+}

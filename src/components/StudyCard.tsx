@@ -5,12 +5,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStudySession } from "@/lib/hooks/useStudySession";
 import { createClient } from "@/lib/supabase/client";
 import { SupabaseInsightRepository } from "@/lib/repository/insightRepository";
-import type { Insight, StudyItem } from "@/lib/repository/types";
+import { SupabaseAiQuestionRepository } from "@/lib/repository/aiQuestionRepository";
+import type { AiQuestion, Insight, StudyItem } from "@/lib/repository/types";
 import { toLiteralIpa } from "@/lib/korean/koLiteralIpa";
 import {
   detectSoundChangeArrows,
   diffSyllablePhonemes,
 } from "@/lib/korean/soundChangeAnalysis";
+
+function formatDateTimeMinute(iso: string): string {
+  const date = new Date(iso);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}`;
+}
 
 export function StudyCard() {
   const { currentItem, phase, errorMessage, start, repeat, next, playSingle } =
@@ -20,57 +29,70 @@ export function StudyCard() {
   const hasStarted = currentItem !== null;
 
   return (
-    <div className="flex min-h-[70vh] w-full flex-col items-center justify-center gap-8 px-4 text-center">
-      <div className="flex min-h-[8rem] w-full flex-col items-center justify-center gap-3">
-        {currentItem ? (
-          // currentItem.id を key にすることで、問題が変わるたびにハングル表示状態がリセットされる
-          <StudyItemDisplay
-            key={currentItem.id}
-            item={currentItem}
-            isBusy={isBusy}
-            onPlaySingle={playSingle}
-          />
-        ) : (
-          <p className="text-lg text-gray-500">
-            「▶ 開始」を押して学習を始めてください
+    <div className="flex w-full flex-1 flex-col md:flex-row">
+      {/* 操作エリア: モバイルではsticky固定、md以上では通常表示 */}
+      <div className="sticky top-0 z-10 flex flex-col items-center gap-6 bg-white px-4 py-4 text-center md:static md:w-[440px] md:shrink-0 md:border-r md:border-gray-200 md:px-6 md:py-6">
+        <div className="flex min-h-[8rem] w-full flex-col items-center justify-center gap-3">
+          {currentItem ? (
+            // currentItem.id を key にすることで、問題が変わるたびにハングル表示状態がリセットされる
+            <StudyItemDisplay
+              key={currentItem.id}
+              item={currentItem}
+              isBusy={isBusy}
+              onPlaySingle={playSingle}
+            />
+          ) : (
+            <p className="text-lg text-gray-500">
+              「▶ 開始」を押して学習を始めてください
+            </p>
+          )}
+        </div>
+
+        {errorMessage && (
+          <p className="text-sm text-red-600" role="alert">
+            {errorMessage}
           </p>
         )}
-      </div>
 
-      {errorMessage && (
-        <p className="text-sm text-red-600" role="alert">
-          {errorMessage}
-        </p>
-      )}
-
-      <div className="flex w-full max-w-xs flex-col gap-3">
-        {!hasStarted ? (
-          <button
-            type="button"
-            onClick={() => void start()}
-            disabled={isBusy}
-            className="rounded-full bg-blue-600 px-6 py-3 text-lg font-semibold text-white disabled:opacity-50"
-          >
-            ▶ 開始
-          </button>
-        ) : (
-          <>
+        <div className="flex w-full max-w-xs flex-col gap-3">
+          {!hasStarted ? (
             <button
               type="button"
-              onClick={() => void repeat()}
-              disabled={isBusy}
-              className="rounded-full bg-gray-200 px-6 py-3 text-lg font-semibold text-gray-800 disabled:opacity-50"
-            >
-              🔁 リピート
-            </button>
-            <button
-              type="button"
-              onClick={() => void next()}
+              onClick={() => void start()}
               disabled={isBusy}
               className="rounded-full bg-blue-600 px-6 py-3 text-lg font-semibold text-white disabled:opacity-50"
             >
-              ▶ 次へ
+              ▶ 開始
             </button>
+          ) : (
+            <div className="flex w-full items-stretch gap-2">
+              <button
+                type="button"
+                onClick={() => void repeat()}
+                disabled={isBusy}
+                className="flex-1 rounded-full bg-gray-200 px-4 py-3 text-base font-semibold text-gray-800 disabled:opacity-50"
+              >
+                🔁 リピート
+              </button>
+              <button
+                type="button"
+                onClick={() => void next()}
+                disabled={isBusy}
+                className="flex-[2] rounded-full bg-blue-600 px-6 py-4 text-lg font-semibold text-white disabled:opacity-50"
+              >
+                ▶ 次へ
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 記録エリア: この例文についてのAI質問・気付きメモを常時表示。md以上では独立してスクロールする */}
+      <div className="flex w-full flex-1 flex-col gap-8 px-4 py-6 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto md:px-6">
+        {currentItem && (
+          <>
+            <AskAiSection key={currentItem.id} item={currentItem} />
+            <InsightSection key={currentItem.id} item={currentItem} />
           </>
         )}
       </div>
@@ -237,19 +259,37 @@ function StudyItemDisplay({
           {showSoundChange ? "音変化を隠す" : "音変化を表示"}
         </button>
       </div>
-
-      <AskAiSection item={item} />
-      <InsightSection item={item} />
     </>
   );
 }
 
 function AskAiSection({ item }: { item: StudyItem }) {
-  const [isOpen, setIsOpen] = useState(false);
   const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [history, setHistory] = useState<AiQuestion[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+
+  const repositoryRef = useRef<SupabaseAiQuestionRepository | null>(null);
+  if (!repositoryRef.current) {
+    repositoryRef.current = new SupabaseAiQuestionRepository(createClient());
+  }
+
+  const loadHistory = useCallback(async () => {
+    setIsLoadingHistory(true);
+    try {
+      const list = await repositoryRef.current!.list(item.id);
+      setHistory(list);
+    } catch {
+      // 履歴の取得失敗は質問機能自体を止めない
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, [item.id]);
+
+  useEffect(() => {
+    void loadHistory();
+  }, [loadHistory]);
 
   const handleAsk = async () => {
     const trimmed = question.trim();
@@ -286,17 +326,8 @@ function AskAiSection({ item }: { item: StudyItem }) {
         return;
       }
 
-      const answerText =
-        typeof data === "object" && data !== null && "answer" in data && typeof (data as { answer: unknown }).answer === "string"
-          ? (data as { answer: string }).answer
-          : null;
-
-      if (!answerText) {
-        setErrorMessage("AIへの問い合わせに失敗しました。");
-        return;
-      }
-
-      setAnswer(answerText);
+      setQuestion("");
+      await loadHistory();
     } catch {
       setErrorMessage("AIへの問い合わせに失敗しました。");
     } finally {
@@ -305,67 +336,64 @@ function AskAiSection({ item }: { item: StudyItem }) {
   };
 
   return (
-    <div className="w-full max-w-md">
+    <section className="flex w-full flex-col gap-3 text-left">
+      <h2 className="text-sm font-semibold text-gray-700">AIに質問</h2>
+      <textarea
+        value={question}
+        onChange={(event) => setQuestion(event.target.value)}
+        disabled={isLoading}
+        placeholder="この例文について質問する"
+        rows={2}
+        className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
+      />
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="text-sm font-medium text-gray-500 underline"
+        onClick={() => void handleAsk()}
+        disabled={isLoading || question.trim() === ""}
+        className="self-end rounded-full bg-gray-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
       >
-        {isOpen ? "AIに質問を閉じる" : "AIに質問"}
+        {isLoading ? "質問中…" : "質問する"}
       </button>
 
-      {isOpen && (
-        <div className="mt-3 flex flex-col gap-2">
-          <textarea
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            disabled={isLoading}
-            placeholder="この例文について質問する"
-            rows={2}
-            className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
-          />
-          <button
-            type="button"
-            onClick={() => void handleAsk()}
-            disabled={isLoading || question.trim() === ""}
-            className="self-end rounded-full bg-gray-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            {isLoading ? "質問中…" : "質問する"}
-          </button>
-
-          <div className="min-h-[2rem] text-left">
-            {errorMessage && (
-              <p className="text-sm text-red-600" role="alert">
-                {errorMessage}
-              </p>
-            )}
-            {!errorMessage && answer && (
-              <p className="whitespace-pre-wrap rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-800">
-                {answer}
-              </p>
-            )}
-          </div>
-        </div>
+      {errorMessage && (
+        <p className="text-sm text-red-600" role="alert">
+          {errorMessage}
+        </p>
       )}
-    </div>
+
+      <div className="flex flex-col gap-3">
+        {isLoadingHistory ? (
+          <p className="text-sm text-gray-400">読み込み中…</p>
+        ) : history.length === 0 ? (
+          <p className="text-sm text-gray-400">まだ質問がありません</p>
+        ) : (
+          history.map((qa) => (
+            <div key={qa.id} className="rounded-lg bg-gray-50 px-3 py-2">
+              <p className="text-xs text-gray-400">{formatDateTimeMinute(qa.createdAt)}</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm font-medium text-gray-800">
+                Q: {qa.question}
+              </p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">A: {qa.answer}</p>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
   );
 }
 
 function InsightSection({ item }: { item: StudyItem }) {
-  const [isOpen, setIsOpen] = useState(false);
   const [note, setNote] = useState("");
-  const [insights, setInsights] = useState<Insight[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  const [isLoadingList, setIsLoadingList] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [insights, setInsights] = useState<Insight[]>([]);
+  const [isLoadingList, setIsLoadingList] = useState(true);
 
   const repositoryRef = useRef<SupabaseInsightRepository | null>(null);
   if (!repositoryRef.current) {
     repositoryRef.current = new SupabaseInsightRepository(createClient());
   }
-
-  const hasLoadedRef = useRef(false);
 
   const loadInsights = useCallback(async () => {
     setIsLoadingList(true);
@@ -380,11 +408,8 @@ function InsightSection({ item }: { item: StudyItem }) {
   }, [item.id]);
 
   useEffect(() => {
-    if (isOpen && !hasLoadedRef.current) {
-      hasLoadedRef.current = true;
-      void loadInsights();
-    }
-  }, [isOpen, loadInsights]);
+    void loadInsights();
+  }, [loadInsights]);
 
   const handleSave = async () => {
     const trimmed = note.trim();
@@ -407,62 +432,51 @@ function InsightSection({ item }: { item: StudyItem }) {
   };
 
   return (
-    <div className="w-full max-w-md">
+    <section className="flex w-full flex-col gap-3 text-left">
+      <h2 className="text-sm font-semibold text-gray-700">気付きメモ</h2>
+      <textarea
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        disabled={isSaving}
+        placeholder="この例文についての気付きをメモする"
+        rows={3}
+        className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
+      />
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="text-sm font-medium text-gray-500 underline"
+        onClick={() => void handleSave()}
+        disabled={isSaving || note.trim() === ""}
+        className="self-end rounded-full bg-gray-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
       >
-        {isOpen ? "気付きメモを閉じる" : "気付きメモ"}
+        {isSaving ? "保存中…" : "保存"}
       </button>
 
-      {isOpen && (
-        <div className="mt-3 flex flex-col gap-2">
-          <textarea
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            disabled={isSaving}
-            placeholder="この例文についての気付きをメモする"
-            rows={3}
-            className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:opacity-50"
-          />
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={isSaving || note.trim() === ""}
-            className="self-end rounded-full bg-gray-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            {isSaving ? "保存中…" : "保存"}
-          </button>
+      <div className="min-h-[1.25rem]">
+        {errorMessage && (
+          <p className="text-sm text-red-600" role="alert">
+            {errorMessage}
+          </p>
+        )}
+        {!errorMessage && saveMessage && (
+          <p className="text-sm text-green-600">{saveMessage}</p>
+        )}
+      </div>
 
-          <div className="min-h-[1.5rem] text-left">
-            {errorMessage && (
-              <p className="text-sm text-red-600" role="alert">
-                {errorMessage}
-              </p>
-            )}
-            {!errorMessage && saveMessage && (
-              <p className="text-sm text-green-600">{saveMessage}</p>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2 text-left">
-            {isLoadingList && (
-              <p className="text-sm text-gray-400">読み込み中…</p>
-            )}
-            {!isLoadingList &&
-              insights.map((insight) => (
-                <p
-                  key={insight.id}
-                  className="whitespace-pre-wrap rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-800"
-                >
-                  {insight.note}
-                </p>
-              ))}
-          </div>
-        </div>
-      )}
-    </div>
+      <div className="flex flex-col gap-2">
+        {isLoadingList ? (
+          <p className="text-sm text-gray-400">読み込み中…</p>
+        ) : insights.length === 0 ? (
+          <p className="text-sm text-gray-400">まだ記録がありません</p>
+        ) : (
+          insights.map((insight) => (
+            <div key={insight.id} className="rounded-lg bg-gray-50 px-3 py-2">
+              <p className="text-xs text-gray-400">{formatDateTimeMinute(insight.createdAt)}</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{insight.note}</p>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
   );
 }
 
