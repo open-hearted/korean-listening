@@ -18,8 +18,9 @@ interface AskAiRequestBody {
   context: AskAiContext;
 }
 
-const SYSTEM_PROMPT =
-  "あなたは韓国語の発音・音韻を日本語話者に説明する講師です。IPA記法を使い、簡潔に答えてください。表示中の例文の情報を文脈として与えます。";
+const SYSTEM_PROMPT = `あなたは韓国語の発音・音韻を日本語話者に説明する講師です。IPA記法を使い、簡潔に答えてください。表示中の例文の情報を文脈として与えます。
+6. 文法の説明で確信が持てない事項は断定せず、「〜という説明が一般的です」のような表現にとどめる。不正確な断定は学習者に深刻な害を与えるため、正確さを簡潔さより優先する
+7. 発音・音韻に関する質問を最優先で丁寧に答える。高度な文法理論や語源の推測には深入りせず、必要なら「この点は教科書等での確認を勧めます」と添える`;
 
 function isAskAiRequestBody(value: unknown): value is AskAiRequestBody {
   if (typeof value !== "object" || value === null) return false;
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
   let answer: string;
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       max_tokens: 1024,
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
